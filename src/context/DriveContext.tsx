@@ -9,6 +9,8 @@ import {
   deleteDriveFile,
   fetchDashboardData,
   fetchFolderContents,
+  renameDriveFile,
+  renameDriveFolder,
   updateFileVisibility,
   uploadDriveFiles,
 } from '@/lib/api';
@@ -23,12 +25,15 @@ interface DriveContextValue {
   files: DriveFile[];
   currentFolderId: string;
   breadcrumbs: BreadcrumbItem[];
+  isLoading: boolean;
   navigateTo: (folderId: string, folderName?: string) => Promise<void>;
   navigateToBreadcrumb: (folderId: string, skipHistory?: boolean) => Promise<void>;
   createFolder: (name: string) => Promise<void>;
   addFiles: (newFiles: File[]) => Promise<void>;
   toggleFileVisibility: (fileId: string) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
+  renameFolder: (folderId: string, name: string) => Promise<void>;
+  renameFile: (fileId: string, name: string) => Promise<void>;
 }
 
 const DriveContext = createContext<DriveContextValue | undefined>(undefined);
@@ -40,21 +45,32 @@ export function DriveProvider({ children }: { children: ReactNode }) {
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
     { id: 'root', name: 'My Drive' },
   ]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadDashboard() {
-      const { folders: initialFolders, files: initialFiles } = await fetchDashboardData();
-      setFolders(initialFolders);
-      setFiles(initialFiles);
+      setIsLoading(true);
+      try {
+        const { folders: initialFolders, files: initialFiles } = await fetchDashboardData();
+        setFolders(initialFolders);
+        setFiles(initialFiles);
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     loadDashboard();
   }, []);
 
   const refreshCurrentFolder = async (folderId: string) => {
-    const { folders: nextFolders, files: nextFiles } = await fetchFolderContents(folderId);
-    setFolders(nextFolders);
-    setFiles(nextFiles);
+    setIsLoading(true);
+    try {
+      const { folders: nextFolders, files: nextFiles } = await fetchFolderContents(folderId);
+      setFolders(nextFolders);
+      setFiles(nextFiles);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const syncBrowserHistory = (folderId: string, nextBreadcrumbs: BreadcrumbItem[]) => {
@@ -123,6 +139,32 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     await refreshCurrentFolder(currentFolderId);
   };
 
+  const renameFolder = async (folderId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const renamed = await renameDriveFolder(folderId, trimmed);
+    if (!renamed) {
+      setFolders((prev) => prev.map((folder) => (folder._id === folderId ? { ...folder, name: trimmed } : folder)));
+      return;
+    }
+
+    setFolders((prev) => prev.map((folder) => (folder._id === folderId ? { ...folder, name: renamed.name } : folder)));
+  };
+
+  const renameFile = async (fileId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const renamed = await renameDriveFile(fileId, trimmed);
+    if (!renamed) {
+      setFiles((prev) => prev.map((file) => (file._id === fileId ? { ...file, name: trimmed } : file)));
+      return;
+    }
+
+    setFiles((prev) => prev.map((file) => (file._id === fileId ? { ...file, name: renamed.name } : file)));
+  };
+
   const toggleFileVisibility = async (fileId: string) => {
     const targetFile = files.find((file) => file._id === fileId);
     if (!targetFile) return;
@@ -159,12 +201,15 @@ export function DriveProvider({ children }: { children: ReactNode }) {
         files,
         currentFolderId,
         breadcrumbs,
+        isLoading,
         navigateTo,
         navigateToBreadcrumb,
         createFolder,
         addFiles,
         toggleFileVisibility,
         deleteFile,
+        renameFolder,
+        renameFile,
       }}
     >
       {children}

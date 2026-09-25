@@ -25,12 +25,15 @@ export default function Drive() {
     files,
     currentFolderId,
     breadcrumbs,
+    isLoading,
     navigateTo,
     navigateToBreadcrumb,
     createFolder,
     addFiles,
     toggleFileVisibility,
     deleteFile,
+    renameFolder,
+    renameFile,
   } = useDrive();
   const navigate = useNavigate();
 
@@ -60,6 +63,13 @@ export default function Drive() {
 
   const visibleFiles = files.filter((f) => f.folderId === currentFolderId || (currentFolderId === 'root' && f.folderId === null));
 
+  const getFolderItemCount = (folderId: string): number => {
+    const nestedFolders = folders.filter((folder) => folder.parentFolderId === folderId);
+    const nestedFiles = files.filter((file) => file.folderId === folderId);
+
+    return nestedFolders.reduce((total, folder) => total + 1 + getFolderItemCount(folder._id), 0) + nestedFiles.length;
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -78,6 +88,17 @@ export default function Drive() {
       URL.revokeObjectURL(objectUrl);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4 text-slate-600">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-500" />
+          <p className="text-sm font-medium">Loading folder contents...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -142,14 +163,16 @@ export default function Drive() {
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setShowCreateFolder(true)}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300"
+              disabled={isLoading}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FolderPlus size={18} className="text-slate-400" />
               New folder
             </button>
             <button
               onClick={() => setShowUpload((p) => !p)}
-              className="flex items-center gap-2 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/30"
+              disabled={isLoading}
+              className="flex items-center gap-2 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Upload size={18} />
               Upload
@@ -170,14 +193,14 @@ export default function Drive() {
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Folders</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {visibleFolders.map((folder) => {
-                const count = files.filter((f) => f.folderId === folder._id).length +
-                  folders.filter((f) => f.parentFolderId === folder._id).length;
+                const count = getFolderItemCount(folder._id);
                 return (
                   <FolderCard
                     key={folder._id}
                     folder={folder}
                     fileCount={count}
                     onOpen={() => navigateTo(folder._id, folder.name)}
+                    onRename={(nextName) => renameFolder(folder._id, nextName)}
                   />
                 );
               })}
@@ -197,6 +220,7 @@ export default function Drive() {
                   onToggleVisibility={() => toggleFileVisibility(file._id)}
                   onDownload={() => handleDownload(file._id, file.name)}
                   onDelete={() => deleteFile(file._id)}
+                  onRename={(nextName) => renameFile(file._id, nextName)}
                 />
               ))}
             </div>

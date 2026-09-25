@@ -14,7 +14,9 @@ import {
   Lock,
   Globe,
   Trash2,
+  Pencil,
 } from 'lucide-react';
+import RenameModal from '@/components/RenameModal';
 import { DriveFile, formatFileSize } from '@/data/mockData';
 
 interface FileCardProps {
@@ -22,6 +24,7 @@ interface FileCardProps {
   onToggleVisibility: () => void;
   onDownload: () => void;
   onDelete: () => void;
+  onRename: (newName: string) => Promise<void> | void;
 }
 
 function getFileIcon(type: string) {
@@ -104,8 +107,9 @@ function getIconColor(type: string): string {
   return colorMap[type.toLowerCase()] || 'text-slate-500 bg-slate-50';
 }
 
-export default function FileCard({ file, onToggleVisibility, onDownload, onDelete }: FileCardProps) {
+export default function FileCard({ file, onToggleVisibility, onDownload, onDelete, onRename }: FileCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const Icon = getFileIcon(file.mimeType);
   const iconColor = getIconColor(file.mimeType);
@@ -122,7 +126,8 @@ export default function FileCard({ file, onToggleVisibility, onDownload, onDelet
   }, [menuOpen]);
 
   return (
-    <div className="group relative flex flex-col rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-slate-300 hover:shadow-md">
+    <>
+      <div className="group relative flex flex-col rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-slate-300 hover:shadow-md">
       <div className="flex items-start justify-between">
         <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconColor} transition-transform group-hover:scale-105`}>
           <Icon size={24} strokeWidth={1.75} />
@@ -142,6 +147,13 @@ export default function FileCard({ file, onToggleVisibility, onDownload, onDelet
               >
                 <Download size={16} className="text-slate-400" />
                 Download
+              </button>
+              <button
+                onClick={() => { setRenameOpen(true); setMenuOpen(false); }}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                <Pencil size={16} className="text-slate-400" />
+                Rename
               </button>
               <button
                 onClick={() => { onToggleVisibility(); setMenuOpen(false); }}
@@ -191,5 +203,15 @@ export default function FileCard({ file, onToggleVisibility, onDownload, onDelet
         )}
       </div>
     </div>
+
+    {renameOpen && (
+      <RenameModal
+        title="Rename file"
+        currentName={file.name}
+        onClose={() => setRenameOpen(false)}
+        onRename={onRename}
+      />
+    )}
+  </>
   );
 }

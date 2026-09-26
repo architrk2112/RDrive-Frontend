@@ -23,20 +23,9 @@ export default function Login() {
     }
   }, [loading, user, navigate]);
 
-  const handleGoogleLogin = async () => {
-    try {
-      const { data } = await api.get('/auth/google');
-
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      login('user@gmail.com', 'Google User');
-      navigate('/drive');
-    } catch (error) {
-      console.error('Google OAuth request failed:', error);
-    }
+  const handleGoogleLogin = () => {
+    const backendUrl = import.meta.env.VITE_API_URL || '/api';
+    window.location.href = `${backendUrl}/auth/google`;
   };
 
   return (

@@ -100,7 +100,11 @@ export async function createDriveFolder({ name, parentId }: { name: string; pare
   }
 }
 
-export async function uploadDriveFiles(parentId: string, files: File[]) {
+export async function uploadDriveFiles(
+  parentId: string,
+  files: File[],
+  onProgress?: (percent: number) => void,
+) {
   try {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
@@ -108,9 +112,15 @@ export async function uploadDriveFiles(parentId: string, files: File[]) {
 
     const response = await api.post('/files/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (event) => {
+        if (!event.total) return;
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress?.(percent);
+      },
     });
 
     const payload = response.data?.files ?? response.data ?? [];
+    onProgress?.(100);
     return (Array.isArray(payload) ? payload : [payload]).map(normalizeFile);
   } catch (error) {
     console.warn('Upload API unavailable, using local mock fallback.', error);

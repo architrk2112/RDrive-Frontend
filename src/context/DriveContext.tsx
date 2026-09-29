@@ -131,10 +131,10 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     await refreshCurrentFolder(currentFolderId);
   };
 
-  const addFiles = async (newFiles: File[]) => {
+  const addFiles = async (newFiles: File[], onProgress?: (percent: number) => void) => {
     if (newFiles.length === 0) return;
 
-    const uploadedFiles = await uploadDriveFiles(currentFolderId, newFiles);
+    const uploadedFiles = await uploadDriveFiles(currentFolderId, newFiles, onProgress);
     setFiles((prev) => [...prev, ...uploadedFiles]);
     await refreshCurrentFolder(currentFolderId);
   };

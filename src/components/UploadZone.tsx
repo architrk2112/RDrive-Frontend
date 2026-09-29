@@ -3,13 +3,14 @@ import { UploadCloud, X } from 'lucide-react';
 import { UploadProgress } from '@/components/UploadProgress';
 
 interface UploadZoneProps {
-  onUpload: (files: File[]) => void;
+  onUpload: (files: File[], onProgress?: (percent: number) => void) => Promise<void> | void;
 }
 
 export default function UploadZone({ onUpload }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback((fileList: FileList | null) => {
@@ -33,14 +34,22 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     handleFiles(e.dataTransfer.files);
   };
 
-  const startUpload = () => {
+  const startUpload = async () => {
     if (selectedFiles.length === 0) return;
+
     setUploading(true);
-    setTimeout(() => {
-      onUpload(selectedFiles);
+    setUploadProgress(0);
+
+    try {
+      await onUpload(selectedFiles, (percent) => {
+        setUploadProgress(percent);
+      });
+      setUploadProgress(100);
+    } finally {
       setSelectedFiles([]);
       setUploading(false);
-    }, 1800);
+      setTimeout(() => setUploadProgress(0), 500);
+    }
   };
 
   const removeFile = (idx: number) => {
@@ -112,6 +121,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 fileName={file.name}
                 fileSize={file.size}
                 uploading={uploading}
+                progress={uploadProgress}
                 onRemove={() => removeFile(idx)}
               />
             ))}

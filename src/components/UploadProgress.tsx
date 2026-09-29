@@ -5,22 +5,31 @@ interface UploadProgressProps {
   fileName: string;
   fileSize: number;
   uploading: boolean;
+  progress: number;
   onRemove: () => void;
 }
 
-export function UploadProgress({ fileName, fileSize, uploading, onRemove }: UploadProgressProps) {
+export function UploadProgress({ fileName, fileSize, uploading, progress, onRemove }: UploadProgressProps) {
+  const progressWidth = Math.max(0, Math.min(100, progress));
+
   return (
     <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-sm font-medium text-slate-700">{fileName}</p>
-          <span className="text-xs text-slate-400 shrink-0">{formatFileSize(fileSize)}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-slate-400">{formatFileSize(fileSize)}</span>
+            {uploading && (
+              <span className="text-[11px] font-medium text-blue-600">{progressWidth}%</span>
+            )}
+          </div>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
           <div
-            className={`h-full rounded-full transition-all duration-700 ${
-              uploading ? 'bg-blue-500 w-3/4' : 'bg-slate-200 w-0'
+            className={`h-full rounded-full transition-all duration-300 ${
+              uploading ? 'bg-blue-500' : 'bg-slate-200'
             }`}
+            style={{ width: `${uploading ? progressWidth : 0}%` }}
           />
         </div>
       </div>

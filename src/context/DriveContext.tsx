@@ -6,6 +6,7 @@ import {
 } from '@/data/mockData';
 import {
   createDriveFolder,
+  deleteDriveFolder,
   deleteDriveFile,
   fetchDashboardData,
   fetchFolderContents,
@@ -29,6 +30,7 @@ interface DriveContextValue {
   navigateTo: (folderId: string, folderName?: string) => Promise<void>;
   navigateToBreadcrumb: (folderId: string, skipHistory?: boolean) => Promise<void>;
   createFolder: (name: string) => Promise<void>;
+  deleteFolder: (folderId: string) => Promise<void>;
   addFiles: (newFiles: File[]) => Promise<void>;
   toggleFileVisibility: (fileId: string) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
@@ -131,6 +133,13 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     await refreshCurrentFolder(currentFolderId);
   };
 
+  const deleteFolder = async (folderId: string) => {
+    const deleted = await deleteDriveFolder(folderId);
+    if (deleted) {
+      await refreshCurrentFolder(currentFolderId);
+    }
+  };
+
   const addFiles = async (newFiles: File[], onProgress?: (percent: number) => void) => {
     if (newFiles.length === 0) return;
 
@@ -205,6 +214,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
         navigateTo,
         navigateToBreadcrumb,
         createFolder,
+        deleteFolder,
         addFiles,
         toggleFileVisibility,
         deleteFile,

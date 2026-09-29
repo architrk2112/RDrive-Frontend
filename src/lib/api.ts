@@ -100,6 +100,16 @@ export async function createDriveFolder({ name, parentId }: { name: string; pare
   }
 }
 
+export async function deleteDriveFolder(folderId: string) {
+  try {
+    await api.delete(`/folders/${folderId}`);
+    return true;
+  } catch (error) {
+    console.warn('Delete folder API unavailable.', error);
+    return false;
+  }
+}
+
 export async function uploadDriveFiles(
   parentId: string,
   files: File[],

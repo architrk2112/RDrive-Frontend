@@ -31,6 +31,7 @@ export default function Drive() {
     createFolder,
     addFiles,
     toggleFileVisibility,
+    deleteFolder,
     deleteFile,
     renameFolder,
     renameFile,
@@ -201,6 +202,7 @@ export default function Drive() {
                     fileCount={count}
                     onOpen={() => navigateTo(folder._id, folder.name)}
                     onRename={(nextName) => renameFolder(folder._id, nextName)}
+                    onDelete={() => deleteFolder(folder._id)}
                   />
                 );
               })}

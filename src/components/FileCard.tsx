@@ -10,6 +10,7 @@ import {
   Presentation,
   File as FileIcon,
   MoreVertical,
+  Eye,
   Download,
   Lock,
   Globe,
@@ -22,6 +23,7 @@ import { DriveFile, formatFileSize } from '@/data/mockData';
 interface FileCardProps {
   file: DriveFile;
   onToggleVisibility: () => void;
+  onView: () => void;
   onDownload: () => void;
   onDelete: () => void;
   onRename: (newName: string) => Promise<void> | void;
@@ -107,12 +109,36 @@ function getIconColor(type: string): string {
   return colorMap[type.toLowerCase()] || 'text-slate-500 bg-slate-50';
 }
 
-export default function FileCard({ file, onToggleVisibility, onDownload, onDelete, onRename }: FileCardProps) {
+export default function FileCard({ file, onToggleVisibility, onView, onDownload, onDelete, onRename }: FileCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const Icon = getFileIcon(file.mimeType);
   const iconColor = getIconColor(file.mimeType);
+  const mimeType = file.mimeType.split(';')[0].toLowerCase();
+  const fileExtension = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const previewableMimeTypes = new Set([
+    'application/pdf',
+    'text/plain',
+    'image/avif',
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'video/mp4',
+    'video/webm',
+    'video/ogg',
+    'audio/mpeg',
+    'audio/mp4',
+    'audio/ogg',
+    'audio/wav',
+    'audio/webm',
+  ]);
+  const previewableExtensions = new Set([
+    'pdf', 'txt', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif',
+    'mp4', 'webm', 'ogv', 'mp3', 'm4a', 'ogg', 'wav',
+  ]);
+  const canPreview = previewableMimeTypes.has(mimeType) || previewableExtensions.has(fileExtension);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -141,12 +167,21 @@ export default function FileCard({ file, onToggleVisibility, onDownload, onDelet
           </button>
           {menuOpen && (
             <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+              {canPreview && (
+                <button
+                  onClick={() => { onView(); setMenuOpen(false); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Eye size={16} className="text-slate-400" />
+                  View
+                </button>
+              )}
               <button
                 onClick={() => { onDownload(); setMenuOpen(false); }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
               >
                 <Download size={16} className="text-slate-400" />
-                Download
+                {canPreview ? 'Download' : 'Download (preview unavailable)'}
               </button>
               <button
                 onClick={() => { setRenameOpen(true); setMenuOpen(false); }}

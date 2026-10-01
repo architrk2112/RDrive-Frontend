@@ -16,7 +16,7 @@ import UploadZone from '@/components/UploadZone';
 import CreateFolderModal from '@/components/CreateFolderModal';
 import { useAuth } from '@/context/AuthContext';
 import { useDrive } from '@/context/DriveContext';
-import { downloadDriveFile } from '@/lib/api';
+import { getDriveFileDownloadUrl, getDriveFileViewUrl } from '@/lib/api';
 
 export default function Drive() {
   const { user, logout } = useAuth();
@@ -76,18 +76,16 @@ export default function Drive() {
     navigate('/login');
   };
 
-  const handleDownload = async (fileId: string, fileName: string) => {
-    const url = await downloadDriveFile(fileId);
+  const handleDownload = (fileId: string) => {
+    const link = document.createElement('a');
+    link.href = getDriveFileDownloadUrl(fileId);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
-    if (!url) {
-      const blob = new Blob([`This is a placeholder download for ${fileName}`], { type: 'text/plain' });
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objectUrl;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(objectUrl);
-    }
+  const handleView = (fileId: string) => {
+    window.open(getDriveFileViewUrl(fileId), '_blank', 'noopener,noreferrer');
   };
 
   if (isLoading) {
@@ -220,7 +218,8 @@ export default function Drive() {
                   key={file._id}
                   file={file}
                   onToggleVisibility={() => toggleFileVisibility(file._id)}
-                  onDownload={() => handleDownload(file._id, file.name)}
+                  onView={() => handleView(file._id)}
+                  onDownload={() => handleDownload(file._id)}
                   onDelete={() => deleteFile(file._id)}
                   onRename={(nextName) => renameFile(file._id, nextName)}
                 />

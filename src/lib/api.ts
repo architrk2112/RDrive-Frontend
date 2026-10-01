@@ -146,22 +146,12 @@ export async function uploadDriveFiles(
   }
 }
 
-export async function downloadDriveFile(fileId: string) {
-  try {
-    const response = await api.get(`/files/${fileId}/download`);
-    const url = response.data?.url ?? response.data?.downloadUrl ?? null;
-    if (!url) return null;
+export function getDriveFileDownloadUrl(fileId: string) {
+  return api.getUri({ url: `/files/${encodeURIComponent(fileId)}/download` });
+}
 
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.click();
-    return url;
-  } catch (error) {
-    console.warn('Download API unavailable.', error);
-    return null;
-  }
+export function getDriveFileViewUrl(fileId: string) {
+  return api.getUri({ url: `/files/${encodeURIComponent(fileId)}/view` });
 }
 
 export async function renameDriveFolder(folderId: string, name: string) {

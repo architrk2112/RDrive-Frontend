@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Folder, Pencil, Trash2 } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import RenameModal from '@/components/RenameModal';
 import { DriveFolder } from '@/data/mockData';
 
@@ -13,6 +14,7 @@ interface FolderCardProps {
 
 export default function FolderCard({ folder, onOpen, onRename, onDelete, fileCount }: FolderCardProps) {
   const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <>
@@ -45,11 +47,7 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, fileCou
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm(`Delete "${folder.name}" and all its contents? This cannot be undone.`)) {
-                void onDelete();
-              }
-            }}
+            onClick={() => setDeleteOpen(true)}
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
             aria-label={`Delete ${folder.name} and its contents`}
             title="Delete folder and all contents"
@@ -65,6 +63,16 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, fileCou
           currentName={folder.name}
           onClose={() => setRenameOpen(false)}
           onRename={onRename}
+        />
+      )}
+      {deleteOpen && (
+        <ConfirmDialog
+          title={`Delete "${folder.name}"?`}
+          description={`This will permanently delete this folder, its nested folders, and all files inside them (${fileCount} items). This action cannot be undone.`}
+          confirmLabel="Delete folder"
+          variant="danger"
+          onCancel={() => setDeleteOpen(false)}
+          onConfirm={onDelete}
         />
       )}
     </>

@@ -6,10 +6,11 @@ interface UploadProgressProps {
   fileSize: number;
   uploading: boolean;
   progress: number;
+  errorMessage?: string;
   onRemove: () => void;
 }
 
-export function UploadProgress({ fileName, fileSize, uploading, progress, onRemove }: UploadProgressProps) {
+export function UploadProgress({ fileName, fileSize, uploading, progress, errorMessage, onRemove }: UploadProgressProps) {
   const progressWidth = Math.max(0, Math.min(100, progress));
 
   return (
@@ -26,12 +27,11 @@ export function UploadProgress({ fileName, fileSize, uploading, progress, onRemo
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
           <div
-            className={`h-full rounded-full transition-all duration-300 ${
-              uploading ? 'bg-blue-500' : 'bg-slate-200'
-            }`}
+            className={`h-full rounded-full transition-all duration-300 ${errorMessage ? 'bg-red-500' : uploading ? 'bg-blue-500' : 'bg-slate-200'}`}
             style={{ width: `${uploading ? progressWidth : 0}%` }}
           />
         </div>
+        {errorMessage && <p className="mt-1 text-xs text-red-600" role="alert">{errorMessage}</p>}
       </div>
       <div className="shrink-0">
         {uploading ? (

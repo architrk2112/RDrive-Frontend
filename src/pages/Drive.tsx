@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FolderPlus,
   Upload,
+  X,
   ChevronDown,
   LogOut,
   User as UserIcon,
@@ -12,6 +13,7 @@ import Logo from '@/components/Logo';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import FolderCard from '@/components/FolderCard';
 import FileCard from '@/components/FileCard';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import UploadZone from '@/components/UploadZone';
 import CreateFolderModal from '@/components/CreateFolderModal';
 import { useAuth } from '@/context/AuthContext';
@@ -40,7 +42,35 @@ export default function Drive() {
 
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [uploadQueueCount, setUploadQueueCount] = useState(0);
+  const [isUploadInProgress, setIsUploadInProgress] = useState(false);
+  const [confirmQueueClear, setConfirmQueueClear] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const updateUploadQueueCount = useCallback((count: number) => {
+    setUploadQueueCount(count);
+  }, []);
+
+  const updateUploadInProgress = useCallback((uploading: boolean) => {
+    setIsUploadInProgress(uploading);
+  }, []);
+
+  const toggleUploadPanel = () => {
+    if (showUpload && uploadQueueCount > 0) {
+      setConfirmQueueClear(true);
+      return;
+    }
+
+    setShowUpload((open) => !open);
+    setUploadQueueCount(0);
+  };
+
+  const closeUploaderAndClearQueue = () => {
+    setShowUpload(false);
+    setUploadQueueCount(0);
+    setConfirmQueueClear(false);
+  };
 
   useEffect(() => {
     const handlePopState = () => {
@@ -71,8 +101,8 @@ export default function Drive() {
     return nestedFolders.reduce((total, folder) => total + 1 + getFolderItemCount(folder._id), 0) + nestedFiles.length;
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -130,7 +160,10 @@ export default function Drive() {
                     Profile
                   </button>
                   <button
-                    onClick={handleLogout}
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      setConfirmSignOut(true);
+                    }}
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
                   >
                     <LogOut size={16} />
@@ -169,12 +202,17 @@ export default function Drive() {
               New folder
             </button>
             <button
-              onClick={() => setShowUpload((p) => !p)}
-              disabled={isLoading}
-              className="flex items-center gap-2 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={toggleUploadPanel}
+              disabled={isLoading || isUploadInProgress}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                showUpload
+                  ? 'bg-slate-600 hover:bg-slate-700'
+                  : 'bg-blue-500 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/30'
+              }`}
+              title={showUpload ? 'Close the uploader and clear queued files' : 'Open the file uploader'}
             >
-              <Upload size={18} />
-              Upload
+              {showUpload ? <X size={18} /> : <Upload size={18} />}
+              {showUpload ? 'Close & clear queue' : 'Upload files'}
             </button>
           </div>
         </div>
@@ -182,7 +220,12 @@ export default function Drive() {
         {/* Upload zone */}
         {showUpload && (
           <div className="mb-6">
-            <UploadZone onUpload={addFiles} />
+            <UploadZone
+              existingFiles={files}
+              onQueueCountChange={updateUploadQueueCount}
+              onUploadingChange={updateUploadInProgress}
+              onUpload={addFiles}
+            />
           </div>
         )}
 
@@ -260,6 +303,26 @@ export default function Drive() {
         <CreateFolderModal
           onClose={() => setShowCreateFolder(false)}
           onCreate={createFolder}
+        />
+      )}
+      {confirmQueueClear && (
+        <ConfirmDialog
+          title="Clear upload queue?"
+          description={`Closing the uploader will remove ${uploadQueueCount} queued ${uploadQueueCount === 1 ? 'file' : 'files'}. They will not be uploaded.`}
+          confirmLabel="Clear queue"
+          variant="danger"
+          onCancel={() => setConfirmQueueClear(false)}
+          onConfirm={closeUploaderAndClearQueue}
+        />
+      )}
+      {confirmSignOut && (
+        <ConfirmDialog
+          title="Sign out of RDrive?"
+          description="You will need to sign in again to access your files."
+          confirmLabel="Sign out"
+          variant="danger"
+          onCancel={() => setConfirmSignOut(false)}
+          onConfirm={handleLogout}
         />
       )}
     </div>

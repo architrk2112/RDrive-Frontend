@@ -17,6 +17,7 @@ import {
   Trash2,
   Pencil,
 } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import RenameModal from '@/components/RenameModal';
 import { DriveFile, formatFileSize } from '@/data/mockData';
 
@@ -112,6 +113,7 @@ function getIconColor(type: string): string {
 export default function FileCard({ file, onToggleVisibility, onView, onDownload, onDelete, onRename }: FileCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const Icon = getFileIcon(file.mimeType);
   const iconColor = getIconColor(file.mimeType);
@@ -208,7 +210,7 @@ export default function FileCard({ file, onToggleVisibility, onView, onDownload,
               </button>
               <div className="my-1 border-t border-slate-100" />
               <button
-                onClick={() => { onDelete(); setMenuOpen(false); }}
+                onClick={() => { setDeleteOpen(true); setMenuOpen(false); }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
               >
                 <Trash2 size={16} />
@@ -245,6 +247,16 @@ export default function FileCard({ file, onToggleVisibility, onView, onDownload,
         currentName={file.name}
         onClose={() => setRenameOpen(false)}
         onRename={onRename}
+      />
+    )}
+    {deleteOpen && (
+      <ConfirmDialog
+        title={`Delete "${file.name}"?`}
+        description="This file will be permanently deleted from your drive. This action cannot be undone."
+        confirmLabel="Delete file"
+        variant="danger"
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={onDelete}
       />
     )}
   </>

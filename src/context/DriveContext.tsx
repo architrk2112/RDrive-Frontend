@@ -31,7 +31,7 @@ interface DriveContextValue {
   navigateToBreadcrumb: (folderId: string, skipHistory?: boolean) => Promise<void>;
   createFolder: (name: string) => Promise<void>;
   deleteFolder: (folderId: string) => Promise<void>;
-  addFiles: (newFiles: File[]) => Promise<void>;
+  addFiles: (newFiles: File[], relativePaths: string[], onProgress?: (percent: number) => void) => Promise<void>;
   toggleFileVisibility: (fileId: string) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
   renameFolder: (folderId: string, name: string) => Promise<void>;
@@ -140,10 +140,10 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addFiles = async (newFiles: File[], onProgress?: (percent: number) => void) => {
+  const addFiles = async (newFiles: File[], relativePaths: string[], onProgress?: (percent: number) => void) => {
     if (newFiles.length === 0) return;
 
-    const uploadedFiles = await uploadDriveFiles(currentFolderId, newFiles, onProgress);
+    const uploadedFiles = await uploadDriveFiles(currentFolderId, newFiles, relativePaths, onProgress);
     setFiles((prev) => [...prev, ...uploadedFiles]);
     await refreshCurrentFolder(currentFolderId);
   };

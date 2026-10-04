@@ -113,12 +113,14 @@ export async function deleteDriveFolder(folderId: string) {
 export async function uploadDriveFiles(
   parentId: string,
   files: File[],
+  relativePaths: string[],
   onProgress?: (percent: number) => void,
 ) {
   try {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
     formData.append('parentId', parentId);
+    formData.append('relativePaths', JSON.stringify(relativePaths));
 
     const response = await api.post('/files/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

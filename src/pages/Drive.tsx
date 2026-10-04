@@ -209,10 +209,10 @@ export default function Drive() {
                   ? 'bg-slate-600 hover:bg-slate-700'
                   : 'bg-blue-500 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/30'
               }`}
-              title={showUpload ? 'Close the uploader and clear queued files' : 'Open the file uploader'}
+              title={showUpload ? 'Close the uploader and clear queued files' : 'Open the file and folder uploader'}
             >
               {showUpload ? <X size={18} /> : <Upload size={18} />}
-              {showUpload ? 'Close & clear queue' : 'Upload files'}
+              {showUpload ? 'Close & clear queue' : 'Upload files & folders'}
             </button>
           </div>
         </div>

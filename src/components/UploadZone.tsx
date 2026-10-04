@@ -32,6 +32,19 @@ interface DirectoryPickerWindow extends Window {
   showDirectoryPicker?: () => Promise<DirectoryPickerEntry>;
 }
 
+interface DroppedFileEntry {
+  name: string;
+  isFile: boolean;
+  isDirectory: boolean;
+  file: (success: (file: File) => void, error: (error: DOMException) => void) => void;
+  createReader: () => {
+    readEntries: (
+      success: (entries: DroppedFileEntry[]) => void,
+      error: (error: DOMException) => void,
+    ) => void;
+  };
+}
+
 interface UploadZoneProps {
   existingFiles: DriveFile[];
   onQueueCountChange: (count: number) => void;
@@ -46,6 +59,7 @@ export default function UploadZone({ existingFiles, onQueueCountChange, onUpload
   const [uploadProgress, setUploadProgress] = useState(0);
   const [sizeLimitMessage, setSizeLimitMessage] = useState('');
   const [folderPickerError, setFolderPickerError] = useState('');
+  const [showFolderAccessInfo, setShowFolderAccessInfo] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const nextItemId = useRef(0);
@@ -149,7 +163,7 @@ export default function UploadZone({ existingFiles, onQueueCountChange, onUpload
     })));
   }, [queueFiles, uploading]);
 
-  const selectFolder = async () => {
+  const openFolderPicker = async () => {
     if (uploading) return;
 
     const pickerWindow = window as DirectoryPickerWindow;
@@ -189,6 +203,10 @@ export default function UploadZone({ existingFiles, onQueueCountChange, onUpload
     }
   };
 
+  const selectFolder = () => {
+    if (!uploading) setShowFolderAccessInfo(true);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     if (uploading) return;
@@ -200,11 +218,72 @@ export default function UploadZone({ existingFiles, onQueueCountChange, onUpload
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     if (uploading) return;
-    handleFiles(e.dataTransfer.files);
+
+    const items = Array.from(e.dataTransfer.items);
+    const fallbackFiles = Array.from(e.dataTransfer.files);
+    const supportsEntryAccess = items.some((item) => typeof item.webkitGetAsEntry === 'function');
+    if (!supportsEntryAccess) {
+      queueFiles(fallbackFiles.map((file) => ({ file, relativePath: file.name })));
+      return;
+    }
+
+    const droppedItems = items.map((item) => {
+      const entry = typeof item.webkitGetAsEntry === 'function'
+        ? item.webkitGetAsEntry() as DroppedFileEntry | null
+        : null;
+      return { entry, file: entry ? null : item.getAsFile() };
+    });
+    const selections: UploadSelection[] = [];
+
+    const getFile = (entry: DroppedFileEntry): Promise<File> => new Promise((resolve, reject) => {
+      entry.file(resolve, reject);
+    });
+
+    const readEntries = (reader: ReturnType<DroppedFileEntry['createReader']>): Promise<DroppedFileEntry[]> =>
+      new Promise((resolve, reject) => {
+        reader.readEntries(resolve, reject);
+      });
+
+    const collectEntry = async (entry: DroppedFileEntry, relativeDirectory: string): Promise<void> => {
+      const relativePath = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
+      if (entry.isFile) {
+        selections.push({ file: await getFile(entry), relativePath });
+        return;
+      }
+
+      if (!entry.isDirectory) return;
+      const reader = entry.createReader();
+      let entries = await readEntries(reader);
+      while (entries.length > 0) {
+        await Promise.all(entries.map((child) => collectEntry(child, relativePath)));
+        entries = await readEntries(reader);
+      }
+    };
+
+    try {
+      for (const { entry, file } of droppedItems) {
+        if (entry) {
+          await collectEntry(entry, '');
+        } else if (file) {
+          selections.push({ file, relativePath: file.name });
+        }
+      }
+
+      if (selections.length > 0) {
+        queueFiles(selections);
+      } else if (fallbackFiles.length > 0) {
+        queueFiles(fallbackFiles.map((file) => ({ file, relativePath: file.name })));
+      } else if (items.length > 0) {
+        setFolderPickerError('These dropped items could not be read. Try using Upload folder to select the folder instead.');
+      }
+    } catch (error) {
+      console.error('Dropped folder read error:', error);
+      setFolderPickerError('The dropped folder could not be read. Check folder permissions and try Upload folder instead.');
+    }
   };
 
   const startUpload = async () => {
@@ -242,12 +321,21 @@ export default function UploadZone({ existingFiles, onQueueCountChange, onUpload
 
   return (
     <div className="w-full">
-      <div
+      <div className="mb-3">
+        <h2 className="text-sm font-semibold text-slate-700">Add files to this folder</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Choose files or a folder, or drag and drop them here.
+        </p>
+      </div>
+      <button
+        type="button"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !uploading && inputRef.current?.click()}
-        className={`flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-10 px-6 transition-all ${
+        disabled={uploading}
+        aria-label="Choose files or drop files and folders to upload"
+        className={`flex min-h-48 w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-all ${
           uploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
         } ${
           isDragging
@@ -262,41 +350,43 @@ export default function UploadZone({ existingFiles, onQueueCountChange, onUpload
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-slate-700">
-            {isDragging ? 'Drop files here' : 'Drag and drop files here'}
+            {isDragging ? 'Drop files or folders here' : 'Drag and drop files or folders here'}
           </p>
-          <p className="text-xs text-slate-400 mt-1">
-            or <span className="text-blue-500 font-medium">browse</span> from your computer
-          </p>
+          <p className="mt-1 text-xs text-slate-400">Or browse your computer to choose files</p>
         </div>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          className="hidden"
-          disabled={uploading}
-          onChange={(e) => {
-            handleFiles(e.target.files);
-            e.currentTarget.value = '';
-          }}
-        />
-        <input
-          ref={folderInputRef}
-          type="file"
-          {...folderPickerAttributes}
-          multiple
-          className="hidden"
-          disabled={uploading}
-          onChange={(e) => {
-            handleFiles(e.target.files);
-            e.currentTarget.value = '';
-          }}
-        />
-      </div>
+        <span className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
+          Browse files
+        </span>
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        className="hidden"
+        disabled={uploading}
+        onChange={(e) => {
+          handleFiles(e.target.files);
+          e.currentTarget.value = '';
+        }}
+      />
+      <input
+        ref={folderInputRef}
+        type="file"
+        {...folderPickerAttributes}
+        multiple
+        className="hidden"
+        disabled={uploading}
+        onChange={(e) => {
+          handleFiles(e.target.files);
+          e.currentTarget.value = '';
+        }}
+      />
 
-      <div className="mt-3 flex justify-center">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+        <span className="text-xs text-slate-400">Want to keep a folder’s structure?</span>
         <button
           type="button"
-          onClick={() => void selectFolder()}
+          onClick={selectFolder}
           disabled={uploading}
           className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -360,6 +450,15 @@ export default function UploadZone({ existingFiles, onQueueCountChange, onUpload
           confirmLabel="Understood"
           onCancel={() => setFolderPickerError('')}
           onConfirm={() => setFolderPickerError('')}
+        />
+      )}
+      {showFolderAccessInfo && (
+        <ConfirmDialog
+          title="Choose a folder to upload"
+          description="Your browser may show its own permission prompt after you choose a folder. That prompt is controlled by your browser, not RDrive. Allow access so RDrive can read the selected files; they will only be uploaded after you review the queue and click Upload."
+          confirmLabel="Choose folder"
+          onCancel={() => setShowFolderAccessInfo(false)}
+          onConfirm={openFolderPicker}
         />
       )}
     </div>

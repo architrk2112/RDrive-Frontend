@@ -22,7 +22,6 @@ const normalizeFile = (file: Partial<DriveFile> & Record<string, unknown>): Driv
   mimeType: String(
     file.mimeType ?? file.type ?? file.extension ?? file.name?.toString().split('.').pop()?.toLowerCase() ?? 'file'
   ),
-  visibility: file.visibility === 'public' ? 'public' : 'private',
   folderId: file.folderId === null || file.folderId === undefined ? null : String(file.folderId ?? file.folder_id ?? null),
   uploadedAt: String(file.uploadedAt ?? file.uploaded_at ?? new Date().toISOString().slice(0, 10)),
 });
@@ -141,7 +140,6 @@ export async function uploadDriveFiles(
       name: file.name,
       size: file.size,
       mimeType: file.name.split('.').pop()?.toLowerCase() || 'file',
-      visibility: 'private' as const,
       folderId: parentId,
       uploadedAt: new Date().toISOString().slice(0, 10),
     }));
@@ -172,16 +170,6 @@ export async function renameDriveFile(fileId: string, name: string) {
     return normalizeFile(response.data?.file ?? response.data ?? {});
   } catch (error) {
     console.warn('Rename file API unavailable.', error);
-    return null;
-  }
-}
-
-export async function updateFileVisibility(fileId: string, visibility: 'public' | 'private') {
-  try {
-    const response = await api.patch(`/files/${fileId}/visibility`, { visibility });
-    return normalizeFile(response.data?.file ?? response.data ?? {});
-  } catch (error) {
-    console.warn('Visibility API unavailable, using local mock fallback.', error);
     return null;
   }
 }

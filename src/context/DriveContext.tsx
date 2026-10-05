@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import {
   DriveFolder,
   DriveFile,
-  FileVisibility,
 } from '@/data/mockData';
 import {
   createDriveFolder,
@@ -12,7 +11,6 @@ import {
   fetchFolderContents,
   renameDriveFile,
   renameDriveFolder,
-  updateFileVisibility,
   uploadDriveFiles,
 } from '@/lib/api';
 
@@ -32,7 +30,6 @@ interface DriveContextValue {
   createFolder: (name: string) => Promise<void>;
   deleteFolder: (folderId: string) => Promise<void>;
   addFiles: (newFiles: File[], relativePaths: string[], onProgress?: (percent: number) => void) => Promise<void>;
-  toggleFileVisibility: (fileId: string) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
   renameFolder: (folderId: string, name: string) => Promise<void>;
   renameFile: (fileId: string, name: string) => Promise<void>;
@@ -174,25 +171,6 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     setFiles((prev) => prev.map((file) => (file._id === fileId ? { ...file, name: renamed.name } : file)));
   };
 
-  const toggleFileVisibility = async (fileId: string) => {
-    const targetFile = files.find((file) => file._id === fileId);
-    if (!targetFile) return;
-
-    const updatedFile = await updateFileVisibility(fileId, targetFile.visibility === 'private' ? 'public' : 'private');
-    if (!updatedFile) {
-      setFiles((prev) =>
-        prev.map((file) =>
-          file._id === fileId
-            ? { ...file, visibility: file.visibility === 'private' ? 'public' : 'private' }
-            : file
-        )
-      );
-      return;
-    }
-
-    setFiles((prev) => prev.map((file) => (file._id === fileId ? updatedFile : file)));
-  };
-
   const deleteFile = async (fileId: string) => {
     const deleted = await deleteDriveFile(fileId);
     if (deleted) {
@@ -216,7 +194,6 @@ export function DriveProvider({ children }: { children: ReactNode }) {
         createFolder,
         deleteFolder,
         addFiles,
-        toggleFileVisibility,
         deleteFile,
         renameFolder,
         renameFile,

@@ -12,8 +12,6 @@ import {
   MoreVertical,
   Eye,
   Download,
-  Lock,
-  Globe,
   Trash2,
   Pencil,
 } from 'lucide-react';
@@ -23,7 +21,6 @@ import { DriveFile, formatFileSize } from '@/data/mockData';
 
 interface FileCardProps {
   file: DriveFile;
-  onToggleVisibility: () => void;
   onView: () => void;
   onDownload: () => void;
   onDelete: () => void;
@@ -110,7 +107,7 @@ function getIconColor(type: string): string {
   return colorMap[type.toLowerCase()] || 'text-slate-500 bg-slate-50';
 }
 
-export default function FileCard({ file, onToggleVisibility, onView, onDownload, onDelete, onRename }: FileCardProps) {
+export default function FileCard({ file, onView, onDownload, onDelete, onRename }: FileCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -192,22 +189,6 @@ export default function FileCard({ file, onToggleVisibility, onView, onDownload,
                 <Pencil size={16} className="text-slate-400" />
                 Rename
               </button>
-              <button
-                onClick={() => { onToggleVisibility(); setMenuOpen(false); }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                {file.visibility === 'private' ? (
-                  <>
-                    <Globe size={16} className="text-slate-400" />
-                    Make public
-                  </>
-                ) : (
-                  <>
-                    <Lock size={16} className="text-slate-400" />
-                    Make private
-                  </>
-                )}
-              </button>
               <div className="my-1 border-t border-slate-100" />
               <button
                 onClick={() => { setDeleteOpen(true); setMenuOpen(false); }}
@@ -226,19 +207,6 @@ export default function FileCard({ file, onToggleVisibility, onView, onDownload,
         <p className="text-xs text-slate-400 mt-1">{formatFileSize(file.size)}</p>
       </div>
 
-      <div className="mt-3 flex items-center gap-1.5">
-        {file.visibility === 'private' ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
-            <Lock size={11} />
-            Private
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
-            <Globe size={11} />
-            Public
-          </span>
-        )}
-      </div>
     </div>
 
     {renameOpen && (

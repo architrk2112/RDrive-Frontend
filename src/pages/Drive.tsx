@@ -32,7 +32,6 @@ export default function Drive() {
     navigateToBreadcrumb,
     createFolder,
     addFiles,
-    toggleFileVisibility,
     deleteFolder,
     deleteFile,
     renameFolder,
@@ -260,7 +259,6 @@ export default function Drive() {
                 <FileCard
                   key={file._id}
                   file={file}
-                  onToggleVisibility={() => toggleFileVisibility(file._id)}
                   onView={() => handleView(file._id)}
                   onDownload={() => handleDownload(file._id)}
                   onDelete={() => deleteFile(file._id)}

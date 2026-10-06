@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { DriveFile, DriveFolder, mockFiles, mockFolders } from '@/data/mockData';
+import { CreateSharePayload, PublicShareInfo, ShareLink, mockPublicShareInfo, mockShareLinks } from '@/data/shareData';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -30,6 +31,139 @@ const fallbackDriveData = {
   folders: mockFolders,
   files: mockFiles,
 };
+
+const normalizeShareLink = (share: Partial<ShareLink> & Record<string, unknown>): ShareLink => ({
+  id: String(share.id ?? share._id ?? `share-${Date.now()}`),
+  token: String(share.token ?? share.shareToken ?? `token-${Date.now()}`),
+  url: String(share.url ?? share.publicUrl ?? `https://rdrive.local/share/${share.token ?? 'demo'}`),
+  resourceType: share.resourceType === 'drive' ? 'drive' : 'folder',
+  folderId: share.folderId === null || share.folderId === undefined ? null : String(share.folderId),
+  folderName: String(share.folderName ?? share.name ?? 'Shared resource'),
+  folderPath: share.folderPath ? String(share.folderPath) : undefined,
+  label: String(share.label ?? share.folderName ?? share.name ?? 'Shared resource'),
+  createdAt: String(share.createdAt ?? new Date().toISOString()),
+  expiresAt: share.expiresAt ? String(share.expiresAt) : null,
+  status: share.status === 'expired' ? 'expired' : share.status === 'revoked' ? 'revoked' : 'active',
+});
+
+const normalizePublicShareInfo = (share: Partial<PublicShareInfo> & Record<string, unknown>): PublicShareInfo => ({
+  id: String(share.id ?? share._id ?? `share-${Date.now()}`),
+  token: String(share.token ?? share.shareToken ?? 'unknown-token'),
+  resourceType: share.resourceType === 'drive' ? 'drive' : 'folder',
+  name: String(share.name ?? share.folderName ?? 'Shared resource'),
+  folderId: share.folderId === null || share.folderId === undefined ? null : String(share.folderId),
+  rootFolderId: share.rootFolderId === null || share.rootFolderId === undefined ? null : String(share.rootFolderId),
+  ownerName: share.ownerName ? String(share.ownerName) : undefined,
+  createdAt: String(share.createdAt ?? new Date().toISOString()),
+  expiresAt: share.expiresAt ? String(share.expiresAt) : null,
+  status: share.status === 'expired' ? 'expired' : share.status === 'revoked' ? 'revoked' : 'active',
+  url: String(share.url ?? share.publicUrl ?? `https://rdrive.local/share/${share.token ?? 'unknown-token'}`),
+});
+
+export async function fetchShareLinks() {
+  try {
+    const response = await api.get('/share-links');
+    const payload = response.data ?? {};
+    const links = Array.isArray(payload.links)
+      ? payload.links
+      : Array.isArray(payload.data?.links)
+        ? payload.data.links
+        : Array.isArray(payload)
+          ? payload
+          : [];
+
+    return links.map((link: Record<string, unknown>) => normalizeShareLink(link));
+  } catch (error) {
+    console.warn('Share links API unavailable, using demo data.', error);
+    return mockShareLinks;
+  }
+}
+
+export async function createShareLink(payload: CreateSharePayload) {
+  try {
+    const response = await api.post('/share-links', payload);
+    const share = response.data?.share ?? response.data ?? {};
+    return normalizeShareLink(share);
+  } catch (error) {
+    console.warn('Create share link API unavailable.', error);
+    const token = `demo-${Math.random().toString(36).slice(2, 9)}`;
+    const now = new Date();
+    const createdAt = now.toISOString();
+    const expiresAt = new Date(payload.expiresAt).toISOString();
+    const link: ShareLink = {
+      id: `share-${Date.now()}`,
+      token,
+      url: `https://rdrive.local/share/${token}`,
+      resourceType: payload.resourceType,
+      folderId: payload.folderId ?? null,
+      folderName: payload.folderName ?? 'Shared resource',
+      folderPath: payload.folderPath,
+      label: payload.resourceType === 'drive' ? 'My Entire Drive' : (payload.folderName ?? 'Shared folder'),
+      createdAt,
+      expiresAt,
+      status: 'active',
+    };
+    return link;
+  }
+}
+
+export async function revokeShareLink(id: string) {
+  try {
+    await api.delete(`/share-links/${encodeURIComponent(id)}`);
+    return true;
+  } catch (error) {
+    console.warn('Revoke share link API unavailable.', error);
+    return false;
+  }
+}
+
+export async function getPublicShare(token: string): Promise<PublicShareInfo | null> {
+  try {
+    const response = await api.get(`/public/shares/${encodeURIComponent(token)}`);
+    const share = response.data?.share ?? response.data ?? {};
+    return normalizePublicShareInfo(share);
+  } catch (error) {
+    console.warn('Public share lookup API unavailable.', error);
+    if (token === mockPublicShareInfo.token) {
+      return mockPublicShareInfo;
+    }
+    return null;
+  }
+}
+
+export async function fetchPublicFolderContents(token: string, folderId: string = 'root') {
+  try {
+    const response = await api.get(`/public/shares/${encodeURIComponent(token)}/folders/${encodeURIComponent(folderId)}`);
+    const payload = response.data ?? {};
+    const folders = Array.isArray(payload.folders) ? payload.folders : [];
+    const files = Array.isArray(payload.files) ? payload.files : [];
+    return { folders, files };
+  } catch (error) {
+    console.warn('Public folder listing API unavailable.', error);
+    return { folders: [], files: [] };
+  }
+}
+
+export async function fetchPublicDriveRoot(token: string) {
+  try {
+    const response = await api.get(`/public/shares/${encodeURIComponent(token)}/drive`);
+    const payload = response.data ?? {};
+    const folders = Array.isArray(payload.folders) ? payload.folders : [];
+    const files = Array.isArray(payload.files) ? payload.files : [];
+    return { folders, files };
+  } catch (error) {
+    console.warn('Public drive root API unavailable.', error);
+    return { folders: [], files: [] };
+  }
+}
+
+export function getPublicFileDownloadUrl(token: string, fileId: string) {
+  return `${API_BASE_URL}/public/shares/${encodeURIComponent(token)}/files/${encodeURIComponent(fileId)}/download`;
+}
+
+export function getPublicFileViewUrl(token: string, fileId: string) {
+  return `${API_BASE_URL}/public/shares/${encodeURIComponent(token)}/files/${encodeURIComponent(fileId)}/view`;
+}
 
 export async function fetchDashboardData() {
   try {

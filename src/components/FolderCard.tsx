@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Folder, Pencil, Trash2 } from 'lucide-react';
+import { Folder, Pencil, Share2, Trash2 } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import RenameModal from '@/components/RenameModal';
 import { DriveFolder } from '@/data/mockData';
@@ -9,10 +9,11 @@ interface FolderCardProps {
   onOpen: () => void;
   onRename: (newName: string) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
+  onShare: () => void;
   fileCount: number;
 }
 
-export default function FolderCard({ folder, onOpen, onRename, onDelete, fileCount }: FolderCardProps) {
+export default function FolderCard({ folder, onOpen, onRename, onDelete, onShare, fileCount }: FolderCardProps) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -37,6 +38,15 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, fileCou
         </button>
 
         <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => onShare()}
+            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+            aria-label={`Share ${folder.name}`}
+            title="Share folder"
+          >
+            <Share2 size={15} />
+          </button>
           <button
             type="button"
             onClick={() => setRenameOpen(true)}

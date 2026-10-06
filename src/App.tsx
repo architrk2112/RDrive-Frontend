@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { DriveProvider } from '@/context/DriveContext';
 import Login from '@/pages/Login';
 import Drive from '@/pages/Drive';
+import PublicShare from '@/pages/PublicShare';
 import { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -27,6 +28,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to={user ? '/drive' : '/login'} replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/share/:token" element={<PublicShare />} />
       <Route
         path="/drive"
         element={

@@ -8,6 +8,7 @@ import {
   LogOut,
   User as UserIcon,
   HardDrive,
+  Share2,
 } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Breadcrumbs from '@/components/Breadcrumbs';
@@ -16,9 +17,18 @@ import FileCard from '@/components/FileCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import UploadZone from '@/components/UploadZone';
 import CreateFolderModal from '@/components/CreateFolderModal';
+import ShareDialog from '@/components/ShareDialog';
+import ShareManager from '@/components/ShareManager';
 import { useAuth } from '@/context/AuthContext';
 import { useDrive } from '@/context/DriveContext';
-import { getDriveFileDownloadUrl, getDriveFileViewUrl } from '@/lib/api';
+import {
+  createShareLink,
+  fetchShareLinks,
+  getDriveFileDownloadUrl,
+  getDriveFileViewUrl,
+  revokeShareLink,
+} from '@/lib/api';
+import { CreateSharePayload, ShareLink } from '@/data/shareData';
 
 export default function Drive() {
   const { user, logout } = useAuth();
@@ -46,6 +56,10 @@ export default function Drive() {
   const [confirmQueueClear, setConfirmQueueClear] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ mode: 'folder' | 'drive'; folderId?: string | null; folderName?: string; folderPath?: string } | null>(null);
+  const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
+  const [shareNotice, setShareNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
   const updateUploadQueueCount = useCallback((count: number) => {
     setUploadQueueCount(count);
@@ -117,6 +131,52 @@ export default function Drive() {
     window.open(getDriveFileViewUrl(fileId), '_blank', 'noopener,noreferrer');
   };
 
+  const loadShareLinks = useCallback(async () => {
+    const links = await fetchShareLinks();
+    setShareLinks(links);
+  }, []);
+
+  useEffect(() => {
+    void loadShareLinks();
+  }, [loadShareLinks]);
+
+  const handleCreateShare = async (payload: CreateSharePayload) => {
+    const createdLink = await createShareLink(payload);
+    setShareLinks((prev) => [createdLink, ...prev]);
+    setShareNotice({ kind: 'success', text: 'Share link created' });
+  };
+
+  const handleCopyShareLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareNotice({ kind: 'success', text: 'Link copied' });
+    } catch (error) {
+      console.error('Failed to copy link', error);
+      setShareNotice({ kind: 'error', text: 'Unable to copy link' });
+    }
+  };
+
+  const handleOpenShareLink = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleRevokeShare = async (id: string) => {
+    const didRevoke = await revokeShareLink(id);
+    if (!didRevoke) {
+      setShareNotice({ kind: 'error', text: 'Unable to revoke this share.' });
+      return;
+    }
+
+    setShareLinks((prev) => prev.map((link) => (link.id === id ? { ...link, status: 'revoked' } : link)));
+    setShareNotice({ kind: 'success', text: 'Share link revoked' });
+  };
+
+  useEffect(() => {
+    if (!shareNotice) return;
+    const timer = window.setTimeout(() => setShareNotice(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [shareNotice]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -135,6 +195,17 @@ export default function Drive() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
           <Logo size="md" />
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShareTarget({ mode: 'drive' });
+                setShowShareDialog(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              <Share2 size={15} />
+              Share my drive
+            </button>
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen((p) => !p)}
@@ -216,6 +287,19 @@ export default function Drive() {
           </div>
         </div>
 
+        <div className="mb-6">
+          <ShareManager
+            links={shareLinks}
+            onCreate={() => {
+              setShareTarget({ mode: 'drive' });
+              setShowShareDialog(true);
+            }}
+            onCopy={handleCopyShareLink}
+            onOpen={handleOpenShareLink}
+            onRevoke={handleRevokeShare}
+          />
+        </div>
+
         {/* Upload zone */}
         {showUpload && (
           <div className="mb-6">
@@ -235,6 +319,7 @@ export default function Drive() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {visibleFolders.map((folder) => {
                 const count = getFolderItemCount(folder._id);
+                const folderPath = [...breadcrumbs.map((item) => item.name), folder.name].join(' / ');
                 return (
                   <FolderCard
                     key={folder._id}
@@ -243,6 +328,10 @@ export default function Drive() {
                     onOpen={() => navigateTo(folder._id, folder.name)}
                     onRename={(nextName) => renameFolder(folder._id, nextName)}
                     onDelete={() => deleteFolder(folder._id)}
+                    onShare={() => {
+                      setShareTarget({ mode: 'folder', folderId: folder._id, folderName: folder.name, folderPath });
+                      setShowShareDialog(true);
+                    }}
                   />
                 );
               })}
@@ -303,6 +392,19 @@ export default function Drive() {
           onCreate={createFolder}
         />
       )}
+      {showShareDialog && shareTarget && (
+        <ShareDialog
+          mode={shareTarget.mode}
+          folderId={shareTarget.folderId}
+          folderName={shareTarget.folderName}
+          folderPath={shareTarget.folderPath}
+          onClose={() => setShowShareDialog(false)}
+          onCreate={async (payload) => {
+            await handleCreateShare(payload);
+            setShowShareDialog(false);
+          }}
+        />
+      )}
       {confirmQueueClear && (
         <ConfirmDialog
           title="Clear upload queue?"
@@ -322,6 +424,11 @@ export default function Drive() {
           onCancel={() => setConfirmSignOut(false)}
           onConfirm={handleLogout}
         />
+      )}
+      {shareNotice && (
+        <div className="fixed bottom-5 right-5 z-50 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-xl">
+          <span className={shareNotice.kind === 'success' ? 'text-emerald-600' : 'text-red-600'}>{shareNotice.text}</span>
+        </div>
       )}
     </div>
   );

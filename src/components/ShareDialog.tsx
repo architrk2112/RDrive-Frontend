@@ -36,6 +36,7 @@ export default function ShareDialog({
   const [preset, setPreset] = useState<string>('1 day');
   const [customDateTime, setCustomDateTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const selectedExpiry = useMemo(() => {
     if (preset === 'Custom') {
@@ -56,6 +57,8 @@ export default function ShareDialog({
     if (!selectedExpiry) return;
 
     setIsSubmitting(true);
+    setErrorMessage('');
+
     try {
       await onCreate({
         resourceType: mode,
@@ -65,6 +68,9 @@ export default function ShareDialog({
         expiresAt: selectedExpiry,
       });
       onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to create share link.';
+      setErrorMessage(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -91,6 +97,12 @@ export default function ShareDialog({
         </div>
 
         <div className="space-y-5 p-5">
+          {errorMessage && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">

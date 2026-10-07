@@ -85,25 +85,16 @@ export async function createShareLink(payload: CreateSharePayload) {
     const share = response.data?.share ?? response.data ?? {};
     return normalizeShareLink(share);
   } catch (error) {
-    console.warn('Create share link API unavailable.', error);
-    const token = `demo-${Math.random().toString(36).slice(2, 9)}`;
-    const now = new Date();
-    const createdAt = now.toISOString();
-    const expiresAt = new Date(payload.expiresAt).toISOString();
-    const link: ShareLink = {
-      id: `share-${Date.now()}`,
-      token,
-      url: `https://rdrive.local/share/${token}`,
-      resourceType: payload.resourceType,
-      folderId: payload.folderId ?? null,
-      folderName: payload.folderName ?? 'Shared resource',
-      folderPath: payload.folderPath,
-      label: payload.resourceType === 'drive' ? 'My Entire Drive' : (payload.folderName ?? 'Shared folder'),
-      createdAt,
-      expiresAt,
-      status: 'active',
+    const axiosError = error as {
+      response?: {
+        status?: number;
+        data?: { message?: string };
+      };
+      message?: string;
     };
-    return link;
+
+    const message = axiosError.response?.data?.message || axiosError.message || 'Unable to create share link.';
+    throw new Error(message);
   }
 }
 

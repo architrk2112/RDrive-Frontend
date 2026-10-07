@@ -63,13 +63,6 @@ export default function PublicShare() {
         const folderToLoad = initialFolder ?? rootFolderId;
         setCurrentFolderId(folderToLoad);
 
-        if (info.resourceType === 'drive') {
-          const result = await fetchPublicDriveRoot(token);
-          setFolderMap({ folders: result.folders, files: result.files });
-          setLoading(false);
-          return;
-        }
-
         const result = await fetchPublicFolderContents(token, folderToLoad);
         setFolderMap({ folders: result.folders, files: result.files });
         setLoading(false);
@@ -101,9 +94,7 @@ export default function PublicShare() {
 
     setLoading(true);
     try {
-      const result = shareInfo.resourceType === 'drive'
-        ? await fetchPublicDriveRoot(token)
-        : await fetchPublicFolderContents(token, nextFolderId);
+      const result = await fetchPublicFolderContents(token, nextFolderId);
       setFolderMap({ folders: result.folders, files: result.files });
     } catch (navError) {
       setError('This shared link is no longer available.');

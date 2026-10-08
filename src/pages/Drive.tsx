@@ -60,6 +60,7 @@ export default function Drive() {
   const [shareTarget, setShareTarget] = useState<{ mode: 'folder' | 'drive'; folderId?: string | null; folderName?: string; folderPath?: string } | null>(null);
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
   const [shareNotice, setShareNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [activeView, setActiveView] = useState<'drive' | 'shares'>('drive');
 
   const updateUploadQueueCount = useCallback((count: number) => {
     setUploadQueueCount(count);
@@ -252,136 +253,169 @@ export default function Drive() {
           <Breadcrumbs items={breadcrumbs} onNavigate={navigateToBreadcrumb} />
         </div>
 
-        {/* Action bar */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">
-              {breadcrumbs[breadcrumbs.length - 1]?.name || 'My Drive'}
-            </h1>
-            <p className="text-sm text-slate-400 mt-0.5">
-              {visibleFolders.length} {visibleFolders.length === 1 ? 'folder' : 'folders'} · {visibleFiles.length} {visibleFiles.length === 1 ? 'file' : 'files'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5">
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+          <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setShowCreateFolder(true)}
-              disabled={isLoading}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <FolderPlus size={18} className="text-slate-400" />
-              New folder
-            </button>
-            <button
-              onClick={toggleUploadPanel}
-              disabled={isLoading || isUploadInProgress}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
-                showUpload
-                  ? 'bg-slate-600 hover:bg-slate-700'
-                  : 'bg-blue-500 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/30'
+              type="button"
+              onClick={() => setActiveView('drive')}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                activeView === 'drive'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
-              title={showUpload ? 'Close the uploader and clear queued files' : 'Open the file and folder uploader'}
             >
-              {showUpload ? <X size={18} /> : <Upload size={18} />}
-              {showUpload ? 'Close & clear queue' : 'Upload files & folders'}
+              My Drive
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('shares')}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                activeView === 'shares'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Shared links
             </button>
           </div>
         </div>
 
-        <div className="mb-6">
-          <ShareManager
-            links={shareLinks}
-            onCreate={() => {
-              setShareTarget({ mode: 'drive' });
-              setShowShareDialog(true);
-            }}
-            onCopy={handleCopyShareLink}
-            onOpen={handleOpenShareLink}
-            onRevoke={handleRevokeShare}
-          />
-        </div>
-
-        {/* Upload zone */}
-        {showUpload && (
-          <div className="mb-6">
-            <UploadZone
-              existingFiles={files}
-              onQueueCountChange={updateUploadQueueCount}
-              onUploadingChange={updateUploadInProgress}
-              onUpload={addFiles}
-            />
-          </div>
-        )}
-
-        {/* Folders */}
-        {visibleFolders.length > 0 && (
-          <div className="mb-8">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Folders</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {visibleFolders.map((folder) => {
-                const count = getFolderItemCount(folder._id);
-                const folderPath = [...breadcrumbs.map((item) => item.name), folder.name].join(' / ');
-                return (
-                  <FolderCard
-                    key={folder._id}
-                    folder={folder}
-                    fileCount={count}
-                    onOpen={() => navigateTo(folder._id, folder.name)}
-                    onRename={(nextName) => renameFolder(folder._id, nextName)}
-                    onDelete={() => deleteFolder(folder._id)}
-                    onShare={() => {
-                      setShareTarget({ mode: 'folder', folderId: folder._id, folderName: folder.name, folderPath });
-                      setShowShareDialog(true);
-                    }}
-                  />
-                );
-              })}
+        {activeView === 'drive' && (
+          <>
+            {/* Action bar */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 className="text-xl font-bold text-slate-800">
+                  {breadcrumbs[breadcrumbs.length - 1]?.name || 'My Drive'}
+                </h1>
+                <p className="text-sm text-slate-400 mt-0.5">
+                  {visibleFolders.length} {visibleFolders.length === 1 ? 'folder' : 'folders'} · {visibleFiles.length} {visibleFiles.length === 1 ? 'file' : 'files'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => setShowCreateFolder(true)}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <FolderPlus size={18} className="text-slate-400" />
+                  New folder
+                </button>
+                <button
+                  onClick={toggleUploadPanel}
+                  disabled={isLoading || isUploadInProgress}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                    showUpload
+                      ? 'bg-slate-600 hover:bg-slate-700'
+                      : 'bg-blue-500 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/30'
+                  }`}
+                  title={showUpload ? 'Close the uploader and clear queued files' : 'Open the file and folder uploader'}
+                >
+                  {showUpload ? <X size={18} /> : <Upload size={18} />}
+                  {showUpload ? 'Close & clear queue' : 'Upload files & folders'}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Files */}
-        {visibleFiles.length > 0 && (
-          <div className="mb-8">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Files</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {visibleFiles.map((file) => (
-                <FileCard
-                  key={file._id}
-                  file={file}
-                  onView={() => handleView(file._id)}
-                  onDownload={() => handleDownload(file._id)}
-                  onDelete={() => deleteFile(file._id)}
-                  onRename={(nextName) => renameFile(file._id, nextName)}
+            {/* Upload zone */}
+            {showUpload && (
+              <div className="mb-6">
+                <UploadZone
+                  existingFiles={files}
+                  onQueueCountChange={updateUploadQueueCount}
+                  onUploadingChange={updateUploadInProgress}
+                  onUpload={addFiles}
                 />
-              ))}
-            </div>
-          </div>
+              </div>
+            )}
+
+            {/* Folders */}
+            {visibleFolders.length > 0 && (
+              <div className="mb-8">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Folders</h2>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                  {visibleFolders.map((folder) => {
+                    const count = getFolderItemCount(folder._id);
+                    const folderPath = [...breadcrumbs.map((item) => item.name), folder.name].join(' / ');
+                    return (
+                      <FolderCard
+                        key={folder._id}
+                        folder={folder}
+                        fileCount={count}
+                        onOpen={() => navigateTo(folder._id, folder.name)}
+                        onRename={(nextName) => renameFolder(folder._id, nextName)}
+                        onDelete={() => deleteFolder(folder._id)}
+                        onShare={() => {
+                          setShareTarget({ mode: 'folder', folderId: folder._id, folderName: folder.name, folderPath });
+                          setShowShareDialog(true);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Files */}
+            {visibleFiles.length > 0 && (
+              <div className="mb-8">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Files</h2>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                  {visibleFiles.map((file) => (
+                    <FileCard
+                      key={file._id}
+                      file={file}
+                      onView={() => handleView(file._id)}
+                      onDownload={() => handleDownload(file._id)}
+                      onDelete={() => deleteFile(file._id)}
+                      onRename={(nextName) => renameFile(file._id, nextName)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {visibleFolders.length === 0 && visibleFiles.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100">
+                  <HardDrive size={36} className="text-slate-300" />
+                </div>
+                <h3 className="mt-5 text-lg font-semibold text-slate-600">This folder is empty</h3>
+                <p className="mt-1 text-sm text-slate-400">Upload files or create a folder to get started.</p>
+                <div className="mt-5 flex gap-3">
+                  <button
+                    onClick={() => setShowCreateFolder(true)}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition-all hover:bg-slate-50"
+                  >
+                    <FolderPlus size={18} className="text-slate-400" />
+                    New folder
+                  </button>
+                  <button
+                    onClick={() => setShowUpload(true)}
+                    className="flex items-center gap-2 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-600"
+                  >
+                    <Upload size={18} />
+                    Upload
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Empty state */}
-        {visibleFolders.length === 0 && visibleFiles.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100">
-              <HardDrive size={36} className="text-slate-300" />
-            </div>
-            <h3 className="mt-5 text-lg font-semibold text-slate-600">This folder is empty</h3>
-            <p className="mt-1 text-sm text-slate-400">Upload files or create a folder to get started.</p>
-            <div className="mt-5 flex gap-3">
-              <button
-                onClick={() => setShowCreateFolder(true)}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition-all hover:bg-slate-50"
-              >
-                <FolderPlus size={18} className="text-slate-400" />
-                New folder
-              </button>
-              <button
-                onClick={() => setShowUpload(true)}
-                className="flex items-center gap-2 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-600"
-              >
-                <Upload size={18} />
-                Upload
-              </button>
-            </div>
+        {activeView === 'shares' && (
+          <div className="mb-6">
+            <ShareManager
+              links={shareLinks}
+              onCreate={() => {
+                setShareTarget({ mode: 'drive' });
+                setShowShareDialog(true);
+              }}
+              onCopy={handleCopyShareLink}
+              onOpen={handleOpenShareLink}
+              onRevoke={handleRevokeShare}
+            />
           </div>
         )}
       </div>

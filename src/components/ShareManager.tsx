@@ -1,4 +1,5 @@
-import { Copy, ExternalLink, Eye, Lock, ShieldCheck, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Copy, ExternalLink, Trash2 } from 'lucide-react';
 import { ShareLink } from '@/data/shareData';
 
 interface ShareManagerProps {
@@ -9,6 +10,8 @@ interface ShareManagerProps {
   onRevoke: (id: string) => Promise<void> | void;
 }
 
+type ShareStatusFilter = 'all' | 'active' | 'expired' | 'revoked';
+
 const formatDate = (value: string | null) => {
   if (!value) return 'No expiry';
   return new Intl.DateTimeFormat('en-US', {
@@ -18,12 +21,28 @@ const formatDate = (value: string | null) => {
 };
 
 export default function ShareManager({ links, onCreate, onCopy, onOpen, onRevoke }: ShareManagerProps) {
+  const [activeFilter, setActiveFilter] = useState<ShareStatusFilter>('active');
+
+  const filteredLinks = useMemo(() => {
+    if (activeFilter === 'all') {
+      return links;
+    }
+    return links.filter((link) => link.status === activeFilter);
+  }, [activeFilter, links]);
+
+  const tabs: Array<{ key: ShareStatusFilter; label: string; count: number }> = [
+    { key: 'all', label: 'All', count: links.length },
+    { key: 'active', label: 'Active', count: links.filter((link) => link.status === 'active').length },
+    { key: 'expired', label: 'Expired', count: links.filter((link) => link.status === 'expired').length },
+    { key: 'revoked', label: 'Revoked', count: links.filter((link) => link.status === 'revoked').length },
+  ];
+
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Shared links</h2>
-          <p className="text-sm text-slate-500">Manage active, expired, and revoked shares.</p>
+          <p className="text-sm text-slate-500">Manage shares by status.</p>
         </div>
         <button
           type="button"
@@ -34,13 +53,40 @@ export default function ShareManager({ links, onCreate, onCopy, onOpen, onRevoke
         </button>
       </div>
 
-      {links.length === 0 ? (
+      <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-2">
+        <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          Filter by section
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => {
+            const isActive = activeFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveFilter(tab.key)}
+                className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
+                  isActive
+                    ? 'border-blue-500 bg-blue-500 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {tab.label} {tab.count > 0 ? `(${tab.count})` : ''}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {filteredLinks.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
-          No shares created yet.
+          {activeFilter === 'all'
+            ? 'No shares created yet.'
+            : `No ${activeFilter} shares found.`}
         </div>
       ) : (
         <div className="space-y-3">
-          {links.map((link) => {
+          {filteredLinks.map((link) => {
             const active = link.status === 'active';
             return (
               <div

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Copy, ExternalLink, Trash2 } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { ShareLink } from '@/data/shareData';
 
 interface ShareManagerProps {
@@ -8,6 +9,7 @@ interface ShareManagerProps {
   onCopy: (url: string) => Promise<void> | void;
   onOpen: (url: string) => void;
   onRevoke: (id: string) => Promise<void> | void;
+  onDelete: (id: string) => Promise<void> | void;
 }
 
 type ShareStatusFilter = 'all' | 'active' | 'expired' | 'revoked';
@@ -20,8 +22,9 @@ const formatDate = (value: string | null) => {
   }).format(new Date(value));
 };
 
-export default function ShareManager({ links, onCreate, onCopy, onOpen, onRevoke }: ShareManagerProps) {
+export default function ShareManager({ links, onCreate, onCopy, onOpen, onRevoke, onDelete }: ShareManagerProps) {
   const [activeFilter, setActiveFilter] = useState<ShareStatusFilter>('active');
+  const [pendingAction, setPendingAction] = useState<null | { id: string; kind: 'revoke' | 'delete' }>(null);
 
   const filteredLinks = useMemo(() => {
     if (activeFilter === 'all') {
@@ -37,8 +40,21 @@ export default function ShareManager({ links, onCreate, onCopy, onOpen, onRevoke
     { key: 'revoked', label: 'Revoked', count: links.filter((link) => link.status === 'revoked').length },
   ];
 
+  const confirmAction = async () => {
+    if (!pendingAction) return;
+
+    if (pendingAction.kind === 'revoke') {
+      await onRevoke(pendingAction.id);
+    } else {
+      await onDelete(pendingAction.id);
+    }
+
+    setPendingAction(null);
+  };
+
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <>
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Shared links</h2>
@@ -78,81 +94,109 @@ export default function ShareManager({ links, onCreate, onCopy, onOpen, onRevoke
         </div>
       </div>
 
-      {filteredLinks.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
-          {activeFilter === 'all'
-            ? 'No shares created yet.'
-            : `No ${activeFilter} shares found.`}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredLinks.map((link) => {
-            const active = link.status === 'active';
-            return (
-              <div
-                key={link.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-800">{link.label}</span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                          active
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : link.status === 'expired'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {link.status}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {link.resourceType === 'drive' ? 'Entire drive' : 'Folder'} · {link.folderPath || 'My Drive'}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                      <span>Created: {formatDate(link.createdAt)}</span>
-                      <span>Expires: {formatDate(link.expiresAt)}</span>
-                    </div>
-                  </div>
+        {filteredLinks.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+            {activeFilter === 'all'
+              ? 'No shares created yet.'
+              : `No ${activeFilter} shares found.`}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredLinks.map((link) => {
+              const active = link.status === 'active';
+              const canRevoke = link.status !== 'revoked';
+              const canDelete = true;
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onCopy(link.url)}
-                      disabled={!active}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Copy size={14} />
-                      Copy
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpen(link.url)}
-                      disabled={!active}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <ExternalLink size={14} />
-                      Open
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRevoke(link.id)}
-                      disabled={!active}
-                      className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Trash2 size={14} />
-                      Revoke
-                    </button>
+              return (
+                <div
+                  key={link.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-800">{link.label}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            active
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : link.status === 'expired'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {link.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {link.resourceType === 'drive' ? 'Entire drive' : 'Folder'} · {link.folderPath || 'My Drive'}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                        <span>Created: {formatDate(link.createdAt)}</span>
+                        <span>Expires: {formatDate(link.expiresAt)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onCopy(link.url)}
+                        disabled={!active}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Copy size={14} />
+                        Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(link.url)}
+                        disabled={!active}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <ExternalLink size={14} />
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingAction({ id: link.id, kind: 'revoke' })}
+                        disabled={!canRevoke}
+                        className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Trash2 size={14} />
+                        Revoke
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingAction({ id: link.id, kind: 'delete' })}
+                        disabled={!canDelete}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {pendingAction && (
+        <ConfirmDialog
+          title={pendingAction.kind === 'revoke' ? 'Revoke this share link?' : 'Delete this share link?'}
+          description={
+            pendingAction.kind === 'revoke'
+              ? 'This will disable the link for anyone using it, but it will remain in your history as revoked.'
+              : 'This will permanently remove the share link from your list and stop anyone from opening it.'
+          }
+          confirmLabel={pendingAction.kind === 'revoke' ? 'Revoke link' : 'Delete link'}
+          variant="danger"
+          onCancel={() => setPendingAction(null)}
+          onConfirm={confirmAction}
+        />
       )}
-    </div>
+    </>
   );
 }

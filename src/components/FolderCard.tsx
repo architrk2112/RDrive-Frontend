@@ -52,6 +52,7 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onShare
             onClick={() => setRenameOpen(true)}
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             aria-label={`Rename ${folder.name}`}
+            title="Rename folder"
           >
             <Pencil size={15} />
           </button>

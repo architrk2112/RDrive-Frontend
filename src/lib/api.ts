@@ -43,7 +43,11 @@ const normalizeShareLink = (share: Partial<ShareLink> & Record<string, unknown>)
   label: String(share.label ?? share.folderName ?? share.name ?? 'Shared resource'),
   createdAt: String(share.createdAt ?? new Date().toISOString()),
   expiresAt: share.expiresAt ? String(share.expiresAt) : null,
-  status: share.status === 'expired' ? 'expired' : share.status === 'revoked' ? 'revoked' : 'active',
+  status: share.status === 'expired'
+    ? 'expired'
+    : share.status === 'revoked'
+      ? 'revoked'
+      : 'active',
 });
 
 const normalizePublicShareInfo = (share: Partial<PublicShareInfo> & Record<string, unknown>): PublicShareInfo => ({
@@ -56,7 +60,11 @@ const normalizePublicShareInfo = (share: Partial<PublicShareInfo> & Record<strin
   ownerName: share.ownerName ? String(share.ownerName) : undefined,
   createdAt: String(share.createdAt ?? new Date().toISOString()),
   expiresAt: share.expiresAt ? String(share.expiresAt) : null,
-  status: share.status === 'expired' ? 'expired' : share.status === 'revoked' ? 'revoked' : 'active',
+  status: share.status === 'expired'
+    ? 'expired'
+    : share.status === 'revoked'
+      ? 'revoked'
+      : 'active',
   url: String(share.url ?? share.publicUrl ?? `https://rdrive.local/share/${share.token ?? 'unknown-token'}`),
 });
 
@@ -100,10 +108,20 @@ export async function createShareLink(payload: CreateSharePayload) {
 
 export async function revokeShareLink(id: string) {
   try {
-    await api.delete(`/share-links/${encodeURIComponent(id)}`);
+    await api.patch(`/share-links/${encodeURIComponent(id)}/revoke`);
     return true;
   } catch (error) {
     console.warn('Revoke share link API unavailable.', error);
+    return false;
+  }
+}
+
+export async function deleteShareLink(id: string) {
+  try {
+    await api.delete(`/share-links/${encodeURIComponent(id)}`);
+    return true;
+  } catch (error) {
+    console.warn('Delete share link API unavailable.', error);
     return false;
   }
 }

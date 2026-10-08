@@ -23,6 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useDrive } from '@/context/DriveContext';
 import {
   createShareLink,
+  deleteShareLink,
   fetchShareLinks,
   getDriveFileDownloadUrl,
   getDriveFileViewUrl,
@@ -170,6 +171,17 @@ export default function Drive() {
 
     setShareLinks((prev) => prev.map((link) => (link.id === id ? { ...link, status: 'revoked' } : link)));
     setShareNotice({ kind: 'success', text: 'Share link revoked' });
+  };
+
+  const handleDeleteShare = async (id: string) => {
+    const didDelete = await deleteShareLink(id);
+    if (!didDelete) {
+      setShareNotice({ kind: 'error', text: 'Unable to delete this share.' });
+      return;
+    }
+
+    setShareLinks((prev) => prev.filter((link) => link.id !== id));
+    setShareNotice({ kind: 'success', text: 'Share link deleted' });
   };
 
   useEffect(() => {
@@ -415,6 +427,7 @@ export default function Drive() {
               onCopy={handleCopyShareLink}
               onOpen={handleOpenShareLink}
               onRevoke={handleRevokeShare}
+              onDelete={handleDeleteShare}
             />
           </div>
         )}
